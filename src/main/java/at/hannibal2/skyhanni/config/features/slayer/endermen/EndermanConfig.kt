@@ -15,6 +15,12 @@ class EndermanConfig {
     val beacon: EndermanBeaconConfig = EndermanBeaconConfig()
 
     @Expose
+    @ConfigOption(name = "Tier IV Voidgloom", desc = "")
+    @SearchTag("enderman t4 laser radiation phase")
+    @Accordion
+    val voidgloom: VoidgloomSeraphConfig = VoidgloomSeraphConfig()
+
+    @Expose
     @ConfigOption(name = "Highlight Nukekubi Skulls", desc = "Highlight the Enderman Slayer Nukekubi Skulls (Eyes).")
     @ConfigEditorBoolean
     @FeatureToggle

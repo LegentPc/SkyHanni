@@ -38,6 +38,11 @@ class ItemAbilityConfig {
     @Expose
     val chickenHead: ChickenHeadConfig = ChickenHeadConfig()
 
+    @ConfigOption(name = "Soulcry", desc = "")
+    @Accordion
+    @Expose
+    val soulcry: SoulcryConfig = SoulcryConfig()
+
     @ConfigOption(name = "Crown of Avarice", desc = "")
     @Accordion
     @Expose
