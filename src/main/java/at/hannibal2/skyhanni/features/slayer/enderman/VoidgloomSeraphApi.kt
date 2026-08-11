@@ -5,6 +5,9 @@ import at.hannibal2.skyhanni.data.SlayerApi
 import at.hannibal2.skyhanni.data.mob.Mob
 import at.hannibal2.skyhanni.data.mob.Mob.Companion.belongsToPlayer
 import at.hannibal2.skyhanni.events.MobEvent
+import at.hannibal2.skyhanni.events.minecraft.WorldChangeEvent
+import at.hannibal2.skyhanni.events.slayer.SlayerChangeEvent
+import at.hannibal2.skyhanni.events.slayer.SlayerStateChangeEvent
 import at.hannibal2.skyhanni.features.slayer.SlayerType
 import at.hannibal2.skyhanni.skyhannimodule.SkyHanniModule
 import at.hannibal2.skyhanni.utils.EntityUtils.getNameTagWith
@@ -58,15 +61,22 @@ object VoidgloomSeraphApi {
     val radiationTimeLeft: Duration?
         get() {
             val vehicle = getRadiationVehicle() ?: return null
-            return (radiationDuration - vehicle.tickCount.ticks).coerceAtLeast(Duration.ZERO)
+            return (radiationDuration - vehicle.tickCount.ticks)
+                .coerceAtLeast(Duration.ZERO)
         }
 
-    fun isTierFourQuest(): Boolean =
-        SlayerApi.activeType == SlayerType.VOID && SlayerApi.tier == TIER
+    fun isTierFourQuest(): Boolean {
+        if (SlayerApi.activeType != SlayerType.VOID) return false
+        if (SlayerApi.tier != TIER) return false
+
+        return SlayerApi.state == SlayerApi.ActiveQuestState.GRINDING ||
+            SlayerApi.state == SlayerApi.ActiveQuestState.BOSS_FIGHT
+    }
 
     @HandleEvent(onlyOnSkyblock = true)
     private fun onMobSpawn(event: MobEvent.Spawn.SkyblockMob) {
         val mob = event.mob
+
         if (mob.name != "Voidgloom Seraph") return
         if (mob.levelOrTier != TIER) return
         if (!mob.belongsToPlayer()) return
@@ -78,9 +88,7 @@ object VoidgloomSeraphApi {
     @HandleEvent(onlyOnSkyblock = true)
     private fun onMobDespawn(event: MobEvent.DeSpawn.SkyblockMob) {
         if (event.mob !== trackedBoss) return
-
-        trackedBoss = null
-        currentHitshield = null
+        clearBoss()
     }
 
     @HandleEvent(onlyOnSkyblock = true)
@@ -88,10 +96,24 @@ object VoidgloomSeraphApi {
         currentHitshield = currentBoss?.let(::findHitshield)
     }
 
+    @HandleEvent(SlayerChangeEvent::class)
+    private fun onSlayerChange() {
+        clearBoss()
+    }
+
     @HandleEvent
+    private fun onSlayerStateChange(event: SlayerStateChangeEvent) {
+        if (
+            event.state != SlayerApi.ActiveQuestState.GRINDING &&
+            event.state != SlayerApi.ActiveQuestState.BOSS_FIGHT
+        ) {
+            clearBoss()
+        }
+    }
+
+    @HandleEvent(WorldChangeEvent::class)
     private fun onWorldChange() {
-        trackedBoss = null
-        currentHitshield = null
+        clearBoss()
     }
 
     private fun getBossPhase(): Phase? {
@@ -120,7 +142,8 @@ object VoidgloomSeraphApi {
         } ?: return null
 
         val damagePhase = getDamagePhase(boss)
-        val hitshieldIndex = ((damagePhase.index + 1) / 2).coerceIn(1, HITSHIELD_PHASES)
+        val hitshieldIndex = ((damagePhase.index + 1) / 2)
+            .coerceIn(1, HITSHIELD_PHASES)
 
         return Phase.Hitshield(
             index = hitshieldIndex,
@@ -142,7 +165,10 @@ object VoidgloomSeraphApi {
 
         val health = boss.health.toDouble().coerceAtLeast(0.0)
         val index = (1..DAMAGE_PHASES).firstOrNull { phase ->
-            val threshold = maximumHealth * (DAMAGE_PHASES - phase).toDouble() / DAMAGE_PHASES
+            val threshold = maximumHealth *
+                (DAMAGE_PHASES - phase).toDouble() /
+                DAMAGE_PHASES
+
             health > threshold
         } ?: DAMAGE_PHASES
 
@@ -156,6 +182,11 @@ object VoidgloomSeraphApi {
         val boss = currentBoss ?: return null
         val enderman = boss.baseEntity as? EnderMan ?: return null
         return enderman.vehicle
+    }
+
+    private fun clearBoss() {
+        trackedBoss = null
+        currentHitshield = null
     }
 
     sealed interface Phase {

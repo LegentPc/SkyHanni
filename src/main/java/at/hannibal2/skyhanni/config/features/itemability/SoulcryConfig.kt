@@ -11,8 +11,8 @@ class SoulcryConfig {
 
     @Expose
     @ConfigOption(
-        name = "Soulcry Timer",
-        desc = "Show the remaining Soulcry active time while doing a Tier IV Voidgloom quest.",
+        name = "Soulcry Cooldown",
+        desc = "Show the Soulcry cooldown and READY state while an active Tier IV Voidgloom quest is running.",
     )
     @ConfigEditorBoolean
     @FeatureToggle
