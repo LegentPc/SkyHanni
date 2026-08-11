@@ -3,24 +3,22 @@ package at.hannibal2.skyhanni.features.slayer.enderman
 import at.hannibal2.skyhanni.api.event.HandleEvent
 import at.hannibal2.skyhanni.data.SlayerApi
 import at.hannibal2.skyhanni.data.mob.Mob
-import at.hannibal2.skyhanni.data.mob.MobData
 import at.hannibal2.skyhanni.events.ParticleChangeEvent
 import at.hannibal2.skyhanni.skyhannimodule.SkyHanniModule
-import at.hannibal2.skyhanni.utils.LorenzVec
 import at.hannibal2.skyhanni.utils.getLorenzVec
 import at.hannibal2.skyhanni.utils.toLorenzVec
 import net.minecraft.core.particles.ColorParticleOption
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket
-import net.minecraft.world.entity.monster.EnderMan
+import kotlin.math.abs
 
 @SkyHanniModule
 object VoidgloomSeraphLaser {
 
-    private const val TIER_FOUR = 4
     private const val REQUIRED_PARTICLE_COUNT = 0
     private const val REQUIRED_PARTICLE_SPEED = 1.0f
     private const val MAXIMUM_SOURCE_DISTANCE = 22.5
+    private const val OFFSET_TOLERANCE = 0.000001f
 
     private const val SIGNATURE_A_X = 0.23137255f
     private const val SIGNATURE_A_Y = 0.05490196f
@@ -75,30 +73,17 @@ object VoidgloomSeraphLaser {
                 y = packet.yDist,
                 z = packet.zDist,
             ) &&
-            findNearestRadiationBoss(packet.toLorenzVec()) === ownBoss
+            isParticleNearOwnBoss(packet, ownBoss)
     }
 
-    private fun findNearestRadiationBoss(
-        particlePosition: LorenzVec,
-    ): Mob? = MobData.skyblockMobs
-        .asSequence()
-        .filter(::isRadiatingTierFourVoidgloom)
-        .minByOrNull {
-            it.baseEntity.getLorenzVec().distance(particlePosition)
-        }
-        ?.takeIf {
-            it.baseEntity
-                .getLorenzVec()
-                .distance(particlePosition) <= MAXIMUM_SOURCE_DISTANCE
-        }
+    private fun isParticleNearOwnBoss(
+        packet: ClientboundLevelParticlesPacket,
+        ownBoss: Mob,
+    ): Boolean {
+        val particlePosition = packet.toLorenzVec()
+        val bossPosition = ownBoss.baseEntity.getLorenzVec()
 
-    private fun isRadiatingTierFourVoidgloom(mob: Mob): Boolean {
-        val enderman = mob.baseEntity as? EnderMan
-
-        return mob.isAlive &&
-            mob.name == "Voidgloom Seraph" &&
-            mob.levelOrTier == TIER_FOUR &&
-            enderman?.vehicle != null
+        return bossPosition.distance(particlePosition) <= MAXIMUM_SOURCE_DISTANCE
     }
 
     private fun isRadiationLaserOffset(
@@ -116,9 +101,9 @@ object VoidgloomSeraphLaser {
         z: Float,
         expected: LaserOffset,
     ): Boolean {
-        return x == expected.x &&
-            y == expected.y &&
-            z == expected.z
+        return abs(x - expected.x) <= OFFSET_TOLERANCE &&
+            abs(y - expected.y) <= OFFSET_TOLERANCE &&
+            abs(z - expected.z) <= OFFSET_TOLERANCE
     }
 
     private data class LaserOffset(
