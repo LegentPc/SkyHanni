@@ -15,8 +15,13 @@ import kotlin.math.abs
 @SkyHanniModule
 object VoidgloomSeraphLaser {
 
-    private const val REQUIRED_PARTICLE_COUNT = 0
-    private const val REQUIRED_PARTICLE_SPEED = 1.0f
+    private const val CURRENT_PARTICLE_COUNT = 1
+    private const val CURRENT_PARTICLE_SPEED = 0.0f
+    private const val CURRENT_OFFSET = 0.0f
+
+    private const val LEGACY_PARTICLE_COUNT = 0
+    private const val LEGACY_PARTICLE_SPEED = 1.0f
+
     private const val MAXIMUM_SOURCE_DISTANCE = 22.5
     private const val OFFSET_TOLERANCE = 0.000001f
 
@@ -28,13 +33,19 @@ object VoidgloomSeraphLaser {
     private const val SIGNATURE_B_Y = 0.14509805f
     private const val SIGNATURE_B_Z = 0.14509805f
 
-    private val signatureA = LaserOffset(
+    private val currentSignature = LaserOffset(
+        x = CURRENT_OFFSET,
+        y = CURRENT_OFFSET,
+        z = CURRENT_OFFSET,
+    )
+
+    private val legacySignatureA = LaserOffset(
         x = SIGNATURE_A_X,
         y = SIGNATURE_A_Y,
         z = SIGNATURE_A_Z,
     )
 
-    private val signatureB = LaserOffset(
+    private val legacySignatureB = LaserOffset(
         x = SIGNATURE_B_X,
         y = SIGNATURE_B_Y,
         z = SIGNATURE_B_Z,
@@ -65,15 +76,50 @@ object VoidgloomSeraphLaser {
             VoidgloomSeraphApi.isRadiationActive &&
             ownBoss != null &&
             packet.particle.type == ParticleTypes.DUST &&
-            packet.count == REQUIRED_PARTICLE_COUNT &&
-            packet.maxSpeed == REQUIRED_PARTICLE_SPEED &&
             packet.isOverrideLimiter &&
-            isRadiationLaserOffset(
+            hasRadiationSignature(packet) &&
+            isParticleNearOwnBoss(packet, ownBoss)
+    }
+
+    private fun hasRadiationSignature(
+        packet: ClientboundLevelParticlesPacket,
+    ): Boolean {
+        return hasCurrentSignature(packet) ||
+            hasLegacySignature(packet)
+    }
+
+    private fun hasCurrentSignature(
+        packet: ClientboundLevelParticlesPacket,
+    ): Boolean {
+        return packet.count == CURRENT_PARTICLE_COUNT &&
+            packet.maxSpeed == CURRENT_PARTICLE_SPEED &&
+            matchesOffset(
                 x = packet.xDist,
                 y = packet.yDist,
                 z = packet.zDist,
-            ) &&
-            isParticleNearOwnBoss(packet, ownBoss)
+                expected = currentSignature,
+            )
+    }
+
+    private fun hasLegacySignature(
+        packet: ClientboundLevelParticlesPacket,
+    ): Boolean {
+        return packet.count == LEGACY_PARTICLE_COUNT &&
+            packet.maxSpeed == LEGACY_PARTICLE_SPEED &&
+            (
+                matchesOffset(
+                    x = packet.xDist,
+                    y = packet.yDist,
+                    z = packet.zDist,
+                    expected = legacySignatureA,
+                ) ||
+                    matchesOffset(
+                        x = packet.xDist,
+                        y = packet.yDist,
+                        z = packet.zDist,
+                        expected = legacySignatureB,
+                    )
+                )
     }
 
     private fun isParticleNearOwnBoss(
@@ -83,16 +129,8 @@ object VoidgloomSeraphLaser {
         val particlePosition = packet.toLorenzVec()
         val bossPosition = ownBoss.baseEntity.getLorenzVec()
 
-        return bossPosition.distance(particlePosition) <= MAXIMUM_SOURCE_DISTANCE
-    }
-
-    private fun isRadiationLaserOffset(
-        x: Float,
-        y: Float,
-        z: Float,
-    ): Boolean {
-        return matchesOffset(x, y, z, signatureA) ||
-            matchesOffset(x, y, z, signatureB)
+        return bossPosition.distance(particlePosition) <=
+            MAXIMUM_SOURCE_DISTANCE
     }
 
     private fun matchesOffset(

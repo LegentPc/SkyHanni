@@ -29,7 +29,7 @@ import kotlin.time.Duration.Companion.seconds
 @SkyHanniModule
 object SoulcryDisplay {
 
-    private const val SOULCRY_SOUND = "entity.ghast.ambient"
+    private const val SOULCRY_SOUND = "entity.ghast.scream"
     private const val SOULCRY_SOUND_PITCH = 0.4920635f
     private const val SOULCRY_SOUND_VOLUME = 0.15f
     private const val MAXIMUM_LOCAL_SOUND_DISTANCE = 2.0
